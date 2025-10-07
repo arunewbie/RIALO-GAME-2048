@@ -1,4 +1,4 @@
-// RIALO GAME 2048 MUMET LUR — Full logic with merge-visual bug fixed
+// RIALO GAME 2048 MUMET LUR — Final with visual merge bug fixed using toRemove flag
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
 const bestEl  = document.getElementById('best');
@@ -14,36 +14,41 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlayMsg');
 
 let N = 4;
-let tiles = []; 
-let score = 0; 
-let best = 0; 
+let tiles = [];
+let score = 0;
+let best = 0;
 let nextId = 1;
-let undoStack = []; 
+let undoStack = [];
 
 const cfgKey = 'cfg-2048';
 const stateKey = 'state-2048';
 
-function storage(){ 
-  try{ return window.localStorage }catch{ 
-    return {getItem(){},setItem(){},removeItem(){}} 
-  } 
+function storage() {
+  try { return window.localStorage } catch {
+    return { getItem(){}, setItem(){}, removeItem(){} }
+  }
 }
 const LS = storage();
 function keyBest(){ return `best-2048-${N}` }
 
-function setTheme(dark){ 
-  document.documentElement.setAttribute('data-theme', dark? 'dark':'' ); 
-  themeToggle.checked=!!dark 
+function setTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark? 'dark':'' );
+  themeToggle.checked = !!dark;
 }
 
 function beep(type='merge'){
   if(!soundToggle.checked) return;
   try{
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const osc = ctx.createOscillator(); const gain = ctx.createGain();
-    osc.type = 'sine'; osc.frequency.value = type==='merge'? 620 : 220;
-    gain.gain.value = 0.06; osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); setTimeout(()=>{osc.stop(); ctx.close()}, type==='merge'? 90:120);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = type==='merge'? 620 : 220;
+    gain.gain.value = 0.06;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(()=>{osc.stop(); ctx.close()}, type==='merge'? 90:120);
   }catch{}
 }
 
@@ -52,13 +57,14 @@ function updateAnimSpeed(){ boardEl.style.setProperty('--anim', fastToggle.check
 
 function buildStaticGrid(){
   boardEl.innerHTML=''; boardEl.style.setProperty('--n', N);
-  const gap=12, pad=12; const rect=boardEl.getBoundingClientRect();
+  const gap=12, pad=12;
+  const rect=boardEl.getBoundingClientRect();
   const cellSize = (rect.width - pad*2 - gap*(N-1)) / N;
   boardEl.style.setProperty('--tile-size', cellSize + 'px');
-  for(let i=0;i<N*N;i++){ 
-    const cell=document.createElement('div'); 
-    cell.className='cell'; 
-    boardEl.appendChild(cell) 
+  for(let i=0;i<N*N;i++){
+    const cell=document.createElement('div');
+    cell.className='cell';
+    boardEl.appendChild(cell);
   }
 }
 
@@ -78,11 +84,11 @@ function drawTiles(){
     const {x,y}=coordsToPx(t.x,t.y);
     d.style.setProperty('--x',x);
     d.style.setProperty('--y',y);
-    const inner=document.createElement('div'); 
-    inner.className='tile-inner'; 
+    const inner=document.createElement('div');
+    inner.className='tile-inner';
     inner.textContent=t.value;
-    d.appendChild(inner); 
-    boardEl.appendChild(d); 
+    d.appendChild(inner);
+    boardEl.appendChild(d);
     t.pop=false;
   });
 }
@@ -129,7 +135,8 @@ function restoreUndo(){
 function move(dir){
   saveUndo(); let moved=false; let gained=0;
   const {xs,ys}=buildTraversal(dir); const v=vectorFor(dir);
-  tiles.forEach(t=>t.merged=false);
+  tiles.forEach(t=>{ t.merged=false; t.toRemove=false; });
+
   for(const y of ys){
     for(const x of xs){
       const tile=cellContent(x,y); if(!tile) continue; let nx=tile.x, ny=tile.y;
@@ -144,12 +151,12 @@ function move(dir){
             beep('merge');
             vibrate(15);
 
-            // FIX: langsung hapus tile lama tanpa pindahkan
-            tiles = tiles.filter(t => t.id !== tile.id);
+            // ✅ FIX: tandai tile lama untuk dihapus nanti
+            tile.toRemove = true;
 
             moved = true;
             next.pop = true;
-            break; // stop merge
+            break;
           }
           break;
         } else { nx=px; ny=py; }
@@ -157,6 +164,10 @@ function move(dir){
       if(nx!==tile.x||ny!==tile.y){ tile.x=nx; tile.y=ny; moved=true }
     }
   }
+
+  // ⬅️ Hapus semua tile bertanda toRemove sekaligus, setelah traversal
+  tiles = tiles.filter(t => !t.toRemove);
+
   if(moved){
     score+=gained; scoreEl.textContent=score;
     if(score>best){ best=score; LS.setItem(keyBest(),best); bestEl.textContent=best }
