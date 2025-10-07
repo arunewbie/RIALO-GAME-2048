@@ -1,4 +1,4 @@
-// RIALO GAME 2048 MUMET LUR — full logic (no external libs)
+// RIALO GAME 2048 MUMET LUR — Full logic with merge-visual bug fixed
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
 const bestEl  = document.getElementById('best');
@@ -14,18 +14,28 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlayMsg');
 
 let N = 4;
-let tiles = []; // {id,value,x,y, merged:false,pop?:bool}
-let score = 0; let best = 0; let nextId = 1;
-let undoStack = []; // up to 5 states
+let tiles = []; 
+let score = 0; 
+let best = 0; 
+let nextId = 1;
+let undoStack = []; 
 
 const cfgKey = 'cfg-2048';
 const stateKey = 'state-2048';
 
-function storage(){ try{ return window.localStorage }catch{ return {getItem(){},setItem(){},removeItem(){}} } }
+function storage(){ 
+  try{ return window.localStorage }catch{ 
+    return {getItem(){},setItem(){},removeItem(){}} 
+  } 
+}
 const LS = storage();
 function keyBest(){ return `best-2048-${N}` }
 
-function setTheme(dark){ document.documentElement.setAttribute('data-theme', dark? 'dark':'' ); themeToggle.checked=!!dark }
+function setTheme(dark){ 
+  document.documentElement.setAttribute('data-theme', dark? 'dark':'' ); 
+  themeToggle.checked=!!dark 
+}
+
 function beep(type='merge'){
   if(!soundToggle.checked) return;
   try{
@@ -36,6 +46,7 @@ function beep(type='merge'){
     osc.start(); setTimeout(()=>{osc.stop(); ctx.close()}, type==='merge'? 90:120);
   }catch{}
 }
+
 function vibrate(ms=20){ if(navigator.vibrate) navigator.vibrate(ms) }
 function updateAnimSpeed(){ boardEl.style.setProperty('--anim', fastToggle.checked? '.04s':'.08s') }
 
@@ -44,8 +55,13 @@ function buildStaticGrid(){
   const gap=12, pad=12; const rect=boardEl.getBoundingClientRect();
   const cellSize = (rect.width - pad*2 - gap*(N-1)) / N;
   boardEl.style.setProperty('--tile-size', cellSize + 'px');
-  for(let i=0;i<N*N;i++){ const cell=document.createElement('div'); cell.className='cell'; boardEl.appendChild(cell) }
+  for(let i=0;i<N*N;i++){ 
+    const cell=document.createElement('div'); 
+    cell.className='cell'; 
+    boardEl.appendChild(cell) 
+  }
 }
+
 function coordsToPx(x,y){
   const gap=12, pad=12;
   const sizePx=parseFloat(getComputedStyle(boardEl).getPropertyValue('--tile-size'));
@@ -53,6 +69,7 @@ function coordsToPx(x,y){
   const pxY=pad + y*(sizePx+gap);
   return {x:pxX+'px', y:pxY+'px'};
 }
+
 function drawTiles(){
   [...boardEl.querySelectorAll('.tile')].forEach(n=>n.remove());
   tiles.forEach(t=>{
@@ -61,10 +78,15 @@ function drawTiles(){
     const {x,y}=coordsToPx(t.x,t.y);
     d.style.setProperty('--x',x);
     d.style.setProperty('--y',y);
-    const inner=document.createElement('div'); inner.className='tile-inner'; inner.textContent=t.value;
-    d.appendChild(inner); boardEl.appendChild(d); t.pop=false;
+    const inner=document.createElement('div'); 
+    inner.className='tile-inner'; 
+    inner.textContent=t.value;
+    d.appendChild(inner); 
+    boardEl.appendChild(d); 
+    t.pop=false;
   });
 }
+
 function emptyCells(){
   const occ=new Set(tiles.map(t=>t.y*N+t.x));
   const out=[];
@@ -73,6 +95,7 @@ function emptyCells(){
   }
   return out;
 }
+
 function addRandomTile(){
   const empties=emptyCells(); if(!empties.length) return false;
   const spot=empties[Math.floor(Math.random()*empties.length)];
@@ -80,6 +103,7 @@ function addRandomTile(){
   tiles.push({id:nextId++, value, x:spot.x, y:spot.y, pop:true});
   return true;
 }
+
 function cellContent(x,y){ return tiles.find(t=>t.x===x && t.y===y) || null }
 
 function within(x,y){ return x>=0 && x<N && y>=0 && y<N }
@@ -89,10 +113,12 @@ function buildTraversal(dir){
   const v=vectorFor(dir); if(v.x===1) xs.reverse(); if(v.y===1) ys.reverse();
   return {xs,ys};
 }
+
 function saveUndo(){
   const snap={N, tiles:JSON.parse(JSON.stringify(tiles)), score, nextId};
   undoStack.push(snap); if(undoStack.length>5) undoStack.shift();
 }
+
 function restoreUndo(){
   const snap=undoStack.pop(); if(!snap) return;
   N=snap.N; tiles=JSON.parse(JSON.stringify(snap.tiles)); score=snap.score; nextId=snap.nextId;
@@ -112,9 +138,18 @@ function move(dir){
         const next=cellContent(px,py);
         if(next){
           if(!next.merged && !tile.merged && next.value===tile.value){
-            next.value*=2; next.merged=true; gained+=next.value; beep('merge'); vibrate(15);
-            tiles = tiles.filter(t=>t.id!==tile.id);
-            tile.x=px; tile.y=py; moved=true; next.pop=true;
+            next.value *= 2;
+            next.merged = true;
+            gained += next.value;
+            beep('merge');
+            vibrate(15);
+
+            // FIX: langsung hapus tile lama tanpa pindahkan
+            tiles = tiles.filter(t => t.id !== tile.id);
+
+            moved = true;
+            next.pop = true;
+            break; // stop merge
           }
           break;
         } else { nx=px; ny=py; }
@@ -130,6 +165,7 @@ function move(dir){
     boardEl.classList.remove('shake'); void boardEl.offsetWidth; boardEl.classList.add('shake'); beep('block');
   }
 }
+
 function movesAvailable(){
   if(emptyCells().length) return true;
   for(let y=0;y<N;y++) for(let x=0;x<N;x++){
@@ -139,6 +175,7 @@ function movesAvailable(){
   }
   return false;
 }
+
 function checkEnd(){
   if(tiles.some(t=>t.value===2048)){
     showOverlay('🎉 You made 2048! Keep going or start a new game.');
@@ -146,10 +183,15 @@ function checkEnd(){
     showOverlay('💀 Game Over — No moves left.');
   }
 }
+
 function showOverlay(msg){ overlayMsg.textContent=msg; overlay.classList.add('show') }
 overlay.addEventListener('click', ()=> overlay.classList.remove('show'))
 
-function persistCfg(){ const cfg={N, dark:themeToggle.checked, sound:soundToggle.checked, hard:hardToggle.checked, fast:fastToggle.checked}; LS.setItem(cfgKey, JSON.stringify(cfg)) }
+function persistCfg(){ 
+  const cfg={N, dark:themeToggle.checked, sound:soundToggle.checked, hard:hardToggle.checked, fast:fastToggle.checked}; 
+  LS.setItem(cfgKey, JSON.stringify(cfg)) 
+}
+
 function loadCfg(){
   try{
     const cfg=JSON.parse(LS.getItem(cfgKey)||'{}');
@@ -161,7 +203,9 @@ function loadCfg(){
     setTheme(themeToggle.checked); updateAnimSpeed();
   }catch{}
 }
+
 function persistState(){ const st={N, tiles, score, nextId}; LS.setItem(stateKey, JSON.stringify(st)) }
+
 function tryResume(){
   try{
     const st=JSON.parse(LS.getItem(stateKey)||'null'); if(!st) return false;
