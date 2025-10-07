@@ -1,4 +1,4 @@
-// RIALO GAME 2048 MUMET LUR — Final with visual merge bug fixed using toRemove flag
+// RIALO GAME 2048 MUMET LUR — Final two-phase move system (no visual glitch)
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
 const bestEl  = document.getElementById('best');
@@ -23,32 +23,20 @@ let undoStack = [];
 const cfgKey = 'cfg-2048';
 const stateKey = 'state-2048';
 
-function storage() {
-  try { return window.localStorage } catch {
-    return { getItem(){}, setItem(){}, removeItem(){} }
-  }
-}
+function storage(){ try{ return window.localStorage }catch{ return {getItem(){},setItem(){},removeItem(){}} } }
 const LS = storage();
 function keyBest(){ return `best-2048-${N}` }
 
-function setTheme(dark){
-  document.documentElement.setAttribute('data-theme', dark? 'dark':'' );
-  themeToggle.checked = !!dark;
-}
+function setTheme(dark){ document.documentElement.setAttribute('data-theme', dark? 'dark':'' ); themeToggle.checked=!!dark }
 
 function beep(type='merge'){
   if(!soundToggle.checked) return;
   try{
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = type==='merge'? 620 : 220;
-    gain.gain.value = 0.06;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    setTimeout(()=>{osc.stop(); ctx.close()}, type==='merge'? 90:120);
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = type==='merge'? 620 : 220;
+    gain.gain.value = 0.06; osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); setTimeout(()=>{osc.stop(); ctx.close()}, type==='merge'? 90:120);
   }catch{}
 }
 
@@ -57,15 +45,10 @@ function updateAnimSpeed(){ boardEl.style.setProperty('--anim', fastToggle.check
 
 function buildStaticGrid(){
   boardEl.innerHTML=''; boardEl.style.setProperty('--n', N);
-  const gap=12, pad=12;
-  const rect=boardEl.getBoundingClientRect();
+  const gap=12, pad=12; const rect=boardEl.getBoundingClientRect();
   const cellSize = (rect.width - pad*2 - gap*(N-1)) / N;
   boardEl.style.setProperty('--tile-size', cellSize + 'px');
-  for(let i=0;i<N*N;i++){
-    const cell=document.createElement('div');
-    cell.className='cell';
-    boardEl.appendChild(cell);
-  }
+  for(let i=0;i<N*N;i++){ const cell=document.createElement('div'); cell.className='cell'; boardEl.appendChild(cell) }
 }
 
 function coordsToPx(x,y){
@@ -113,12 +96,6 @@ function addRandomTile(){
 function cellContent(x,y){ return tiles.find(t=>t.x===x && t.y===y) || null }
 
 function within(x,y){ return x>=0 && x<N && y>=0 && y<N }
-function vectorFor(dir){ return [ {x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0} ][dir] }
-function buildTraversal(dir){
-  const xs=[...Array(N).keys()], ys=[...Array(N).keys()];
-  const v=vectorFor(dir); if(v.x===1) xs.reverse(); if(v.y===1) ys.reverse();
-  return {xs,ys};
-}
 
 function saveUndo(){
   const snap={N, tiles:JSON.parse(JSON.stringify(tiles)), score, nextId};
@@ -132,48 +109,97 @@ function restoreUndo(){
   buildStaticGrid(); drawTiles(); overlay.classList.remove('show'); persistState();
 }
 
+/**
+ * Move function — refactored into 2 phases: shift → merge
+ */
 function move(dir){
-  saveUndo(); let moved=false; let gained=0;
-  const {xs,ys}=buildTraversal(dir); const v=vectorFor(dir);
-  tiles.forEach(t=>{ t.merged=false; t.toRemove=false; });
+  saveUndo();
+
+  let moved = false;
+  let gained = 0;
+
+  const vector = [
+    {x:0,y:-1}, // up
+    {x:1,y:0},  // right
+    {x:0,y:1},  // down
+    {x:-1,y:0}  // left
+  ][dir];
+
+  // Order traversal so movement is from edge inward
+  const xs = [...Array(N).keys()];
+  const ys = [...Array(N).keys()];
+  if(vector.x === 1) xs.reverse();
+  if(vector.y === 1) ys.reverse();
+
+  // Phase 1: Slide all tiles as far as possible
+  function findFarthest(x,y){
+    let nx = x, ny = y;
+    while(true){
+      const px = nx + vector.x;
+      const py = ny + vector.y;
+      if(!within(px,py)) break;
+      if(cellContent(px,py)) break;
+      nx = px; ny = py;
+    }
+    return {x:nx, y:ny};
+  }
 
   for(const y of ys){
     for(const x of xs){
-      const tile=cellContent(x,y); if(!tile) continue; let nx=tile.x, ny=tile.y;
-      while(true){
-        const px=nx+v.x, py=ny+v.y; if(!within(px,py)) break;
-        const next=cellContent(px,py);
-        if(next){
-          if(!next.merged && !tile.merged && next.value===tile.value){
-            next.value *= 2;
-            next.merged = true;
-            gained += next.value;
-            beep('merge');
-            vibrate(15);
-
-            // ✅ FIX: tandai tile lama untuk dihapus nanti
-            tile.toRemove = true;
-
-            moved = true;
-            next.pop = true;
-            break;
-          }
-          break;
-        } else { nx=px; ny=py; }
+      const tile = cellContent(x,y);
+      if(!tile) continue;
+      const far = findFarthest(tile.x,tile.y);
+      if(far.x !== tile.x || far.y !== tile.y){
+        tile.x = far.x;
+        tile.y = far.y;
+        moved = true;
       }
-      if(nx!==tile.x||ny!==tile.y){ tile.x=nx; tile.y=ny; moved=true }
     }
   }
 
-  // ⬅️ Hapus semua tile bertanda toRemove sekaligus, setelah traversal
-  tiles = tiles.filter(t => !t.toRemove);
+  // Phase 2: Merge tiles in the move direction
+  for(const y of ys){
+    for(const x of xs){
+      const tile = cellContent(x,y);
+      if(!tile) continue;
+      const nx = x + vector.x;
+      const ny = y + vector.y;
+      const next = cellContent(nx,ny);
+      if(next && next.value === tile.value && !next.merged && !tile.merged){
+        // Merge tile into next
+        next.value *= 2;
+        next.merged = true;
+        gained += next.value;
+        beep('merge');
+        vibrate(15);
+        // Remove old tile
+        tiles = tiles.filter(t => t.id !== tile.id);
+        next.pop = true;
+        moved = true;
+      }
+    }
+  }
+
+  // Reset merged flags
+  tiles.forEach(t => t.merged = false);
 
   if(moved){
-    score+=gained; scoreEl.textContent=score;
-    if(score>best){ best=score; LS.setItem(keyBest(),best); bestEl.textContent=best }
-    addRandomTile(); drawTiles(); persistState(); checkEnd();
+    score += gained;
+    scoreEl.textContent = score;
+    if(score > best){
+      best = score;
+      LS.setItem(keyBest(), best);
+      bestEl.textContent = best;
+    }
+    addRandomTile();
+    drawTiles();
+    persistState();
+    checkEnd();
   } else {
-    boardEl.classList.remove('shake'); void boardEl.offsetWidth; boardEl.classList.add('shake'); beep('block');
+    boardEl.classList.remove('shake');
+    void boardEl.offsetWidth;
+    boardEl.classList.add('shake');
+    beep('block');
   }
 }
 
