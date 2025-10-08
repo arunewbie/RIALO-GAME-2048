@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RIALO GAME 2048 MUMET LUR</title>
-  <link rel="icon" type="image/png" href="./icon/favicon.png">
+  <link rel="icon" type="image/png" href="./icon/favicon.png" />
   <style>
     :root{
-      --bg:#faf8ef;--board:#bbada0;--empty:#cdc1b4;--tile:#eee4da;--text:#776e65;--white:#f9f6f2;--accent:#8f7a66;--tile-size:1px;
+      --bg:#faf8ef;--board:#bbada0;--empty:#cdc1b4;--text:#776e65;--white:#f9f6f2;--accent:#8f7a66;
     }
-    [data-theme="dark"]{ --bg:#171614;--board:#2b2723;--empty:#3b352f;--tile:#6b5f55;--text:#f5eee6;--white:#fffaf2;--accent:#d5c2a8; }
+    [data-theme="dark"]{ --bg:#171614;--board:#2b2723;--empty:#3b352f;--text:#f5eee6;--white:#fffaf2;--accent:#d5c2a8; }
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text);display:grid;place-items:center;min-height:100svh;padding:18px}
     .wrap{max-width:560px;width:100%}
     header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
-    h1{font-size:34px;line-height:1;margin:0;color:var(--accent)}
+    h1{font-size:28px;line-height:1;margin:0;color:var(--accent)}
     .scores{display:flex;gap:8px}
     .badge{background:#bbada0;color:var(--white);border-radius:8px;padding:8px 10px;text-align:center;min-width:90px}
     [data-theme="dark"] .badge{background:#4a4139}
@@ -25,19 +26,20 @@
     button, select, label.switch{appearance:none;border:0;cursor:pointer;background:#8f7a66;color:var(--white);padding:10px 14px;border-radius:10px;font-weight:700}
     button.secondary{background:#bbada0}
     [data-theme="dark"] button.secondary{background:#4a4139}
-    select{cursor:pointer}
     label.switch{display:inline-flex;align-items:center;gap:8px}
     label.switch input{accent-color:#8f7a66}
+    select{cursor:pointer}
     .board{position:relative;aspect-ratio:1/1;background:var(--board);border-radius:14px;padding:12px;display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.08); width:100%;}
     .cell{background:var(--empty);border-radius:10px}
-    .tile{position:absolute;inset:auto;display:grid;place-items:center;font-weight:800;border-radius:10px;color:var(--text);transition:transform var(--anim,.08s) ease, background .15s ease;will-change:transform}
+    .tile{position:absolute;inset:auto;display:grid;place-items:center;font-weight:800;border-radius:10px;color:var(--text);transition:transform var(--anim,.08s) ease;will-change:transform}
     .tile-inner{font-size:34px}
-    .tile{width:var(--tile-size);height:var(--tile-size);transform:translate(var(--x),var(--y)) scale(1)}
     .pop{animation:pop .12s ease}
     @keyframes pop{0%{transform:scale(.9)}100%{transform:scale(1)}}
+
     .v2{background:#eee4da}.v4{background:#ede0c8}.v8{background:#f2b179;color:var(--white)}.v16{background:#f59563;color:var(--white)}.v32{background:#f67c5f;color:var(--white)}.v64{background:#f65e3b;color:var(--white)}.v128{background:#edcf72;color:var(--white)}.v256{background:#edcc61;color:var(--white)}.v512{background:#edc850;color:var(--white)}.v1024{background:#edc53f;color:var(--white)}.v2048{background:#edc22e;color:var(--white)}
     .shake{animation:shake .25s}
     @keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+
     .overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;border-radius:14px}
     .overlay.show{display:flex}
     .card{background:#8f7a66;color:var(--white);padding:16px 18px;border-radius:12px;text-align:center;max-width:80%}
@@ -45,7 +47,7 @@
     .small{font-size:12px;opacity:.7}
     .creator{text-align:center;font-size:14px;margin-top:12px;opacity:.85}
     .creator a{color:var(--accent);text-decoration:none;font-weight:800}
-    @media (max-width:420px){h1{font-size:28px}.tile-inner{font-size:28px}}
+    @media (max-width:420px){h1{font-size:24px}.tile-inner{font-size:28px}}
   </style>
 </head>
 <body>
@@ -80,10 +82,11 @@
 
     <div class="board" id="board" aria-label="2048 board" role="application"></div>
     <div class="overlay" id="overlay"><div class="card" id="overlayMsg"></div></div>
-    <div class="notice small">Arrow keys / WASD or swipe. Settings persist locally.</div>
+    <div class="notice small">Arrow keys / WASD atau geser. Progress & setelan otomatis tersimpan.</div>
     <div class="creator">Created by <a href="https://github.com/arunewbie" target="_blank" rel="noopener">Arunewbie</a></div>
   </div>
 
+  <!-- non-module + defer agar aman dari file:// & Pages -->
   <script src="./game.js" defer></script>
 </body>
 </html>
